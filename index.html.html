@@ -1,0 +1,1673 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<meta name="theme-color" content="#5B4FE9"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Mi Rutina Diaria"/>
+<title>Mi Rutina Diaria 🚀</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet"/>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;background:#0f0f1a;font-family:'Nunito',sans-serif;}
+:root{
+  --p:#5B4FE9;--pl:#8B82F0;--g:#22D3A5;--r:#FF6B6B;--y:#FFD93D;
+  --dark:#1a1a2e;--card:#ffffff;--bg:#F4F3FF;--txt:#1e1b4b;--gray:#94a3b8;
+}
+
+/* ── APP SHELL ── */
+#app{background:var(--bg);height:100dvh;max-width:420px;margin:0 auto;
+  display:flex;flex-direction:column;overflow:hidden;
+  box-shadow:0 0 80px rgba(91,79,233,.3);}
+
+/* ── TOPBAR ── */
+#topbar{
+  background:linear-gradient(135deg,var(--p),var(--pl));
+  color:#fff;display:flex;justify-content:space-between;align-items:center;
+  padding:max(10px,env(safe-area-inset-top)) 18px 10px;
+  flex-shrink:0;gap:10px;
+}
+#topbar-left{display:flex;flex-direction:column;}
+#topbar-nombre{font-size:12px;font-weight:700;opacity:.8;letter-spacing:.5px;}
+#topbar-fecha{font-size:13px;font-weight:800;text-transform:capitalize;}
+#topbar-reloj{font-size:28px;font-weight:900;letter-spacing:-1px;line-height:1;}
+#sync-dot{width:10px;height:10px;border-radius:50%;background:var(--y);
+  box-shadow:0 0 8px var(--y);animation:pulse 2s infinite;}
+#sync-dot.ok{background:var(--g);box-shadow:0 0 8px var(--g);animation:none;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+
+/* ── SCREENS ── */
+#content{flex:1;overflow:hidden;position:relative;}
+.screen{position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding-bottom:80px;display:none;flex-direction:column;}
+.screen.active{display:flex;}
+
+/* ── PROGRESS HEADER ── */
+.prog-wrap{padding:14px 16px 0;}
+.prog-bar{height:10px;background:rgba(91,79,233,.15);border-radius:99px;overflow:hidden;}
+.prog-fill{height:100%;border-radius:99px;transition:width .6s cubic-bezier(.4,0,.2,1);}
+.prog-label{font-size:12px;font-weight:700;color:var(--gray);margin-top:5px;text-align:right;}
+
+/* ── TAREA CARD ── */
+.t-card{
+  background:#fff;margin:8px 14px 0;border-radius:20px;
+  padding:14px;box-shadow:0 2px 16px rgba(91,79,233,.08);
+  border-left:5px solid var(--p);transition:opacity .2s;
+}
+.t-card.done{opacity:.7;}
+.t-card.nope{opacity:.5;}
+.t-top{display:flex;align-items:center;gap:10px;}
+.t-ico{font-size:28px;flex-shrink:0;}
+.t-data{flex:1;min-width:0;}
+.t-hora{font-size:10px;font-weight:800;color:var(--gray);letter-spacing:1px;}
+.t-nom{font-size:15px;font-weight:900;color:var(--txt);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.t-badge{font-size:10px;font-weight:900;color:#fff;border-radius:99px;
+  padding:3px 9px;white-space:nowrap;flex-shrink:0;}
+.bg-ok{background:var(--g);}
+.bg-no{background:var(--r);}
+.bg-pend{background:var(--gray);}
+
+/* ── ACTION BUTTONS ── */
+.t-btns{display:flex;gap:6px;margin-top:10px;}
+.btn-ok,.btn-no{
+  flex:1;padding:9px 4px;border-radius:12px;font-size:12px;font-weight:900;
+  cursor:pointer;font-family:inherit;transition:all .15s;border:2px solid;min-width:0;
+}
+.btn-ok{background:#f0fdf9;color:var(--g);border-color:var(--g);}
+.btn-ok.sel,.btn-ok:active{background:var(--g);color:#fff;}
+.btn-no{background:#fff5f5;color:var(--r);border-color:var(--r);}
+.btn-no.sel,.btn-no:active{background:var(--r);color:#fff;}
+.btn-cam{
+  padding:9px 12px;border-radius:12px;font-size:13px;font-weight:900;
+  cursor:pointer;border:none;font-family:inherit;
+  background:#f0eeff;color:var(--p);transition:all .15s;
+}
+.btn-cam.has{background:var(--p);color:#fff;}
+
+/* FOTO PREVIEW */
+.foto-prev{display:flex;align-items:center;gap:8px;
+  margin-top:8px;background:#f4f3ff;border-radius:12px;padding:8px 10px;cursor:pointer;}
+.foto-prev img{width:44px;height:44px;object-fit:cover;border-radius:8px;}
+.foto-prev span{font-size:11px;font-weight:800;color:var(--p);}
+
+/* ── MSG MOTIV ── */
+.msg-card{
+  margin:12px 14px 0;background:linear-gradient(135deg,var(--p),var(--pl));
+  border-radius:20px;padding:14px 16px;cursor:pointer;
+  box-shadow:0 4px 20px rgba(91,79,233,.25);
+}
+.msg-label{font-size:10px;font-weight:800;color:rgba(255,255,255,.7);letter-spacing:1px;margin-bottom:3px;}
+.msg-txt{font-size:14px;font-weight:800;color:#fff;line-height:1.4;}
+
+/* ── CALENDARIO ── */
+.cal-nav-row{display:flex;align-items:center;justify-content:space-between;padding:16px 16px 8px;}
+.cal-nav-btn{background:var(--p);color:#fff;border:none;border-radius:12px;
+  width:36px;height:36px;font-size:18px;font-weight:900;cursor:pointer;}
+.cal-mes{font-size:18px;font-weight:900;color:var(--txt);text-transform:capitalize;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;padding:0 12px;}
+.cal-dn{text-align:center;font-size:10px;font-weight:800;color:var(--gray);padding:4px 0;}
+.cal-d{border-radius:10px;padding:5px 2px;text-align:center;cursor:pointer;
+  min-height:44px;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;border:2px solid transparent;transition:all .15s;}
+.cal-d:active{transform:scale(.9);}
+.cal-d.hoy{border-color:var(--p);}
+.cal-num{font-size:14px;font-weight:600;color:var(--txt);}
+.cal-d.hoy .cal-num{color:var(--p);font-weight:900;}
+.cal-pct{font-size:9px;font-weight:900;margin-top:1px;}
+.leyenda{display:flex;flex-wrap:wrap;gap:6px;padding:12px 14px;justify-content:center;}
+.ley{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--gray);font-weight:700;}
+.ley-d{width:10px;height:10px;border-radius:3px;}
+
+/* ── DETALLE ── */
+.det-head{
+  background:linear-gradient(135deg,var(--p),var(--pl));color:#fff;
+  padding:14px 16px 18px;border-radius:0 0 24px 24px;margin-bottom:8px;flex-shrink:0;
+}
+.btn-back{background:rgba(255,255,255,.2);border:none;color:#fff;
+  border-radius:99px;padding:6px 14px;font-size:12px;font-weight:800;
+  cursor:pointer;font-family:inherit;margin-bottom:8px;display:inline-block;}
+.det-pct{font-size:44px;font-weight:900;line-height:1;}
+
+/* ── ADMIN ── */
+.adm-head{
+  background:linear-gradient(135deg,#22D3A5,#0ea5e9);color:#fff;
+  padding:18px 16px;border-radius:0 0 24px 24px;margin-bottom:10px;flex-shrink:0;
+}
+.adm-titulo{font-size:20px;font-weight:900;}
+.adm-sub{font-size:12px;opacity:.85;margin-top:2px;}
+
+.tabs{display:flex;gap:3px;margin:0 12px 12px;background:#fff;
+  border-radius:14px;padding:4px;box-shadow:0 2px 12px rgba(91,79,233,.08);}
+.tab{flex:1;padding:8px 3px;border:none;border-radius:10px;font-size:11px;
+  font-weight:800;cursor:pointer;font-family:inherit;background:transparent;
+  color:var(--gray);transition:all .2s;}
+.tab.on{background:var(--p);color:#fff;}
+
+/* CARDS ADMIN */
+.acard{background:#fff;border-radius:18px;margin:0 12px 10px;padding:14px;
+  box-shadow:0 2px 12px rgba(91,79,233,.07);}
+.acard-title{font-size:14px;font-weight:900;color:var(--txt);margin-bottom:10px;}
+.inp{width:100%;padding:10px 12px;border-radius:12px;border:2px solid #e2e8f0;
+  font-size:14px;font-weight:700;color:var(--txt);margin-bottom:8px;
+  outline:none;font-family:inherit;}
+.inp:focus{border-color:var(--p);}
+textarea.inp{resize:none;}
+.btn-prim{width:100%;padding:12px;background:var(--p);color:#fff;border:none;
+  border-radius:14px;font-size:14px;font-weight:900;cursor:pointer;
+  font-family:inherit;transition:all .2s;}
+.btn-prim:active{transform:scale(.98);}
+.btn-sec{width:100%;padding:11px;background:#f4f3ff;color:var(--p);
+  border:2px solid var(--p);border-radius:14px;font-size:13px;font-weight:800;
+  cursor:pointer;font-family:inherit;margin-top:6px;}
+.btn-danger{width:100%;padding:11px;background:#fff5f5;color:var(--r);
+  border:2px solid var(--r);border-radius:14px;font-size:13px;font-weight:800;
+  cursor:pointer;font-family:inherit;margin-top:6px;}
+
+/* EMOJI & COLOR PICKERS */
+.pick-row{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;}
+.ep{width:34px;height:34px;border-radius:9px;border:none;font-size:17px;
+  cursor:pointer;background:#f4f3ff;transition:all .15s;}
+.ep.on{background:var(--p);transform:scale(1.1);}
+.cp{width:26px;height:26px;border-radius:7px;cursor:pointer;
+  border:3px solid transparent;transition:all .15s;}
+.cp.on{border-color:var(--txt);transform:scale(1.15);}
+
+/* TAREA ADMIN ROW */
+.ta-row{display:flex;align-items:center;gap:8px;padding:10px 0;
+  border-bottom:1px solid #f1f5f9;}
+.ta-row:last-child{border:none;}
+.ta-info{flex:1;min-width:0;}
+.ta-nm{font-size:13px;font-weight:800;color:var(--txt);}
+.ta-hr{font-size:11px;color:var(--gray);font-weight:600;}
+.ta-edit,.ta-del{width:32px;height:32px;border-radius:9px;border:none;
+  font-size:15px;cursor:pointer;flex-shrink:0;}
+.ta-edit{background:#f4f3ff;}
+.ta-del{background:#fff5f5;}
+
+/* EDIT INLINE */
+.edit-box{background:#f8f7ff;border-radius:14px;padding:12px;margin-top:8px;}
+.edit-row{display:flex;gap:6px;}
+.edit-row .inp{flex:1;margin-bottom:0;}
+
+/* NOTIF TOGGLE ROW */
+.nt-row{display:flex;align-items:center;gap:10px;padding:9px 0;
+  border-bottom:1px solid #f1f5f9;}
+.nt-row:last-child{border:none;}
+.nt-toggle{position:relative;width:42px;height:23px;flex-shrink:0;}
+.nt-toggle input{opacity:0;width:0;height:0;}
+.nt-slider{position:absolute;inset:0;background:#e2e8f0;border-radius:99px;cursor:pointer;transition:.2s;}
+.nt-slider::before{content:'';position:absolute;height:17px;width:17px;
+  left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.2s;}
+.nt-toggle input:checked+.nt-slider{background:var(--p);}
+.nt-toggle input:checked+.nt-slider::before{transform:translateX(19px);}
+
+/* STAT GRID */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 12px 10px;}
+.stat-box{background:#fff;border-radius:16px;padding:14px;text-align:center;
+  box-shadow:0 2px 12px rgba(91,79,233,.07);}
+.stat-n{font-size:30px;font-weight:900;}
+.stat-l{font-size:10px;color:var(--gray);font-weight:700;margin-top:2px;}
+
+/* REP ROWS */
+.rep-row{display:flex;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9;}
+.rep-row:last-child{border:none;}
+.rep-info{flex:1;min-width:0;}
+.rep-nm{font-size:12px;font-weight:800;color:var(--txt);}
+.rep-bar{height:5px;background:#f1f5f9;border-radius:99px;margin-top:4px;overflow:hidden;}
+.rep-fill{height:100%;border-radius:99px;}
+.rep-pct{font-size:13px;font-weight:900;margin-left:10px;flex-shrink:0;}
+
+/* STATUS */
+.status-box{border-radius:12px;padding:8px 12px;font-size:11px;font-weight:800;margin-bottom:8px;}
+.status-ok{background:#f0fdf9;color:var(--g);}
+.status-warn{background:#fffbeb;color:#d97706;}
+.status-err{background:#fff5f5;color:var(--r);}
+
+/* INSTALL CARD */
+.install-card{background:linear-gradient(135deg,var(--g),#0ea5e9);
+  border-radius:18px;margin:0 12px 10px;padding:16px;color:#fff;}
+.install-btn{width:100%;padding:11px;background:rgba(255,255,255,.25);
+  border:2px solid rgba(255,255,255,.5);border-radius:12px;color:#fff;
+  font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;}
+
+/* ── NAV ── */
+#nav{background:#fff;display:flex;border-top:2px solid #f1f5f9;
+  box-shadow:0 -4px 20px rgba(91,79,233,.08);flex-shrink:0;
+  padding-bottom:env(safe-area-inset-bottom);}
+.nb{flex:1;padding:10px 0 6px;background:none;border:none;display:flex;
+  flex-direction:column;align-items:center;gap:2px;cursor:pointer;
+  font-family:inherit;color:var(--gray);transition:color .2s;}
+.nb.on{color:var(--p);}
+.nb .ni{font-size:21px;}
+.nb .nl{font-size:10px;font-weight:800;}
+
+/* ── LOCK SCREEN ── */
+#lockscreen{
+  position:fixed;inset:0;z-index:9000;display:none;
+  background:linear-gradient(160deg,#0f0f1a 0%,#1e1b4b 50%,#0f2027 100%);
+  color:#fff;overflow-y:auto;align-items:flex-start;justify-content:center;
+  flex-direction:column;
+}
+#lockscreen.show{display:flex;}
+.lk-time{font-size:68px;font-weight:900;letter-spacing:-3px;
+  margin:50px auto 0;text-align:center;display:block;
+  text-shadow:0 4px 30px rgba(91,79,233,.5);}
+.lk-date{font-size:14px;font-weight:700;opacity:.7;text-transform:capitalize;
+  text-align:center;margin:4px auto 20px;display:block;}
+.lk-cards{width:100%;padding:0 16px;display:flex;flex-direction:column;gap:8px;}
+.lk-card{background:rgba(255,255,255,.12);backdrop-filter:blur(20px);
+  border-radius:18px;padding:12px 14px;border:1px solid rgba(255,255,255,.15);}
+.lk-app{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.lk-ico{width:26px;height:26px;background:var(--p);border-radius:7px;
+  display:flex;align-items:center;justify-content:center;font-size:13px;}
+.lk-app-nm{font-size:10px;font-weight:800;opacity:.7;letter-spacing:.5px;}
+.lk-title{font-size:14px;font-weight:900;margin-bottom:2px;}
+.lk-body{font-size:12px;opacity:.85;font-weight:600;line-height:1.4;}
+.lk-unlock{display:block;margin:16px auto 30px;padding:12px 36px;
+  background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.3);
+  border-radius:99px;color:#fff;font-size:14px;font-weight:800;
+  cursor:pointer;font-family:inherit;backdrop-filter:blur(10px);}
+
+/* ── LOGIN ── */
+#login-screen{
+  position:fixed;inset:0;z-index:8000;display:none;
+  background:linear-gradient(135deg,var(--p) 0%,var(--pl) 100%);
+  align-items:center;justify-content:center;flex-direction:column;padding:30px;
+}
+#login-screen.show{display:flex;}
+.login-ico{font-size:56px;margin-bottom:10px;}
+.login-title{font-size:24px;font-weight:900;color:#fff;margin-bottom:4px;}
+.login-sub{font-size:13px;color:rgba(255,255,255,.8);margin-bottom:24px;text-align:center;}
+.login-inp{width:100%;padding:14px;border-radius:14px;border:none;
+  font-size:24px;font-weight:900;text-align:center;letter-spacing:8px;
+  font-family:inherit;margin-bottom:10px;outline:none;color:var(--txt);max-width:280px;}
+.login-btn{width:100%;max-width:280px;padding:13px;background:rgba(255,255,255,.2);
+  border:2px solid rgba(255,255,255,.4);border-radius:14px;color:#fff;
+  font-size:15px;font-weight:900;cursor:pointer;font-family:inherit;margin-bottom:8px;}
+.login-err{font-size:12px;font-weight:800;color:#FFD93D;min-height:18px;text-align:center;}
+.login-cancel{background:none;border:none;color:rgba(255,255,255,.6);
+  font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;padding:8px;}
+
+/* ── MODAL ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10000;
+  display:none;align-items:center;justify-content:center;}
+.overlay.show{display:flex;}
+.modal{background:#fff;border-radius:22px;padding:22px 18px;width:88%;
+  max-width:340px;position:relative;max-height:80vh;overflow-y:auto;}
+.modal-x{position:absolute;top:10px;right:12px;background:none;border:none;
+  font-size:20px;cursor:pointer;color:var(--gray);}
+.modal-title{font-size:16px;font-weight:900;color:var(--txt);
+  margin-bottom:12px;text-align:center;}
+.img-big{width:100%;border-radius:12px;object-fit:cover;max-height:260px;margin-bottom:12px;}
+.no-foto{text-align:center;color:var(--gray);padding:30px 0;font-size:14px;font-weight:700;}
+
+/* SYNC BANNER */
+#sync-banner{
+  position:fixed;bottom:70px;left:50%;transform:translateX(-50%);
+  background:var(--p);color:#fff;border-radius:99px;padding:8px 18px;
+  font-size:12px;font-weight:800;z-index:5000;opacity:0;transition:opacity .3s;
+  pointer-events:none;white-space:nowrap;
+}
+#sync-banner.show{opacity:1;}
+
+.empty{text-align:center;color:var(--gray);font-size:13px;
+  font-weight:700;padding:24px 20px;}
+.spacer{height:16px;}
+</style>
+
+<script>
+// ── SONIDOS con Web Audio API (sin archivos externos) ──
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let actx = null;
+
+function getACtx() {
+  if (!actx) actx = new AudioCtx();
+  return actx;
+}
+
+const SONIDOS = {
+  suave:    { freq:[523,659,784],    dur:0.15, type:'sine',     vol:0.3  },
+  alegre:   { freq:[523,659,784,1047], dur:0.12, type:'sine',   vol:0.4  },
+  campana:  { freq:[1047,1319],      dur:0.3,  type:'sine',     vol:0.35 },
+  marimba:  { freq:[784,1047,784],   dur:0.18, type:'triangle', vol:0.4  },
+  fuerte:   { freq:[440,550,660],    dur:0.2,  type:'square',   vol:0.2  },
+  bip:      { freq:[880],            dur:0.15, type:'sine',     vol:0.3  },
+  none:     null,
+};
+
+const SONIDO_NOMBRES = {
+  suave:   '🔔 Suave',
+  alegre:  '🎵 Alegre',
+  campana: '🔕 Campana',
+  marimba: '🎶 Marimba',
+  fuerte:  '📣 Fuerte',
+  bip:     '📳 Bip',
+  none:    '🔇 Sin sonido',
+};
+
+function playTone(nombre) {
+  if (!nombre || nombre === 'none') return;
+  const s = SONIDOS[nombre]; if (!s) return;
+  try {
+    const ctx = getACtx();
+    if (ctx.state === 'suspended') ctx.resume();
+    s.freq.forEach((f, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = s.type;
+      osc.frequency.setValueAtTime(f, ctx.currentTime + i * s.dur);
+      gain.gain.setValueAtTime(s.vol, ctx.currentTime + i * s.dur);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * s.dur + s.dur);
+      osc.start(ctx.currentTime + i * s.dur);
+      osc.stop(ctx.currentTime + i * s.dur + s.dur + 0.05);
+    });
+  } catch(e) {}
+}
+</script>
+</head>
+<body>
+<div id="app">
+
+  <!-- TOPBAR -->
+  <div id="topbar">
+    <div id="topbar-left">
+      <div id="topbar-nombre">MI RUTINA DIARIA 🚀</div>
+      <div id="topbar-fecha">cargando...</div>
+      <div id="topbar-reloj">--:--</div>
+    </div>
+    <div id="sync-dot" title="Estado sincronización"></div>
+  </div>
+
+  <div id="content">
+
+    <!-- HOY -->
+    <div class="screen active" id="s-hoy">
+      <div class="prog-wrap">
+        <div class="prog-bar"><div class="prog-fill" id="prog-fill"></div></div>
+        <div class="prog-label" id="prog-label">0% completado</div>
+      </div>
+      <div id="hoy-lista"></div>
+      <div class="spacer"></div>
+    </div>
+
+    <!-- CALENDARIO -->
+    <div class="screen" id="s-cal">
+      <div class="cal-nav-row">
+        <button class="cal-nav-btn" id="cal-prev">‹</button>
+        <span class="cal-mes" id="cal-titulo"></span>
+        <button class="cal-nav-btn" id="cal-next">›</button>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+      <div class="leyenda">
+        <div class="ley"><div class="ley-d" style="background:#22D3A5"></div>≥80%</div>
+        <div class="ley"><div class="ley-d" style="background:#FFD93D"></div>50-79%</div>
+        <div class="ley"><div class="ley-d" style="background:#FF6B6B"></div>1-49%</div>
+        <div class="ley"><div class="ley-d" style="background:#e2e8f0"></div>Sin datos</div>
+      </div>
+    </div>
+
+    <!-- DETALLE DÍA -->
+    <div class="screen" id="s-det">
+      <div class="det-head">
+        <button class="btn-back" id="btn-back-cal">← Volver</button>
+        <div id="det-fecha" style="font-size:13px;opacity:.85;text-transform:capitalize;font-weight:700;"></div>
+        <div class="det-pct" id="det-pct">0%</div>
+        <div style="font-size:11px;opacity:.75;font-weight:700;">de tareas completadas</div>
+      </div>
+      <div id="det-lista"></div>
+      <div class="spacer"></div>
+    </div>
+
+    <!-- ADMIN -->
+    <div class="screen" id="s-adm">
+      <div class="adm-head">
+        <div class="adm-titulo">👨‍💼 Administrador</div>
+        <div class="adm-sub">Solo tú puedes ver esto</div>
+      </div>
+      <div class="tabs">
+        <button class="tab on" data-tab="tareas">📋 Tareas</button>
+        <button class="tab" data-tab="notif">🔔 Mensajes</button>
+        <button class="tab" data-tab="rep">📊 Reportes</button>
+        <button class="tab" data-tab="cfg">⚙️ Config</button>
+      </div>
+
+      <!-- TAB TAREAS -->
+      <div id="tab-tareas">
+        <div class="acard">
+          <div class="acard-title">Tareas del día</div>
+          <!-- Selector tipo de día -->
+      <div style="display:flex;gap:6px;margin:0 0 12px;background:#f4f3ff;border-radius:14px;padding:4px;">
+        <button id="btn-lv" onclick="switchDiaTipo('lv')" style="flex:1;padding:9px;border:none;border-radius:10px;font-size:12px;font-weight:900;cursor:pointer;font-family:inherit;background:#5B4FE9;color:#fff;">📅 Lunes a Viernes</button>
+        <button id="btn-finde" onclick="switchDiaTipo('finde')" style="flex:1;padding:9px;border:none;border-radius:10px;font-size:12px;font-weight:900;cursor:pointer;font-family:inherit;background:transparent;color:#94a3b8;">🏖️ Fin de Semana</button>
+      </div>
+      <div id="adm-lista"></div>
+        </div>
+        <div class="acard">
+          <div class="acard-title">➕ Nueva tarea</div>
+          <input class="inp" id="nt-nom" placeholder="Nombre de la tarea"/>
+          <input class="inp" id="nt-hr" type="time" value="08:00"/>
+          <div style="font-size:11px;font-weight:800;color:var(--gray);margin-bottom:5px">EMOJI</div>
+          <div class="pick-row" id="nt-ep"></div>
+          <div style="font-size:11px;font-weight:800;color:var(--gray);margin-bottom:5px">COLOR</div>
+          <div class="pick-row" id="nt-cp"></div>
+          <button class="btn-prim" id="btn-add-t">Agregar tarea ✓</button>
+        </div>
+        <div class="spacer"></div>
+      </div>
+
+      <!-- TAB NOTIFICACIONES -->
+      <div id="tab-notif" style="display:none">
+        <div class="acard">
+          <div class="acard-title">🔔 Permisos de notificaciones</div>
+          <div id="notif-status" class="status-box status-warn">Verificando...</div>
+          <button class="btn-prim" id="btn-perm">Activar en este celular 📲</button>
+          <button class="btn-sec" id="btn-prueba">👁️ Ver pantalla de bloqueo (prueba)</button>
+        </div>
+        <div class="acard">
+          <div class="acard-title">⏰ Recordatorio por tarea</div>
+          <div id="notif-lista"></div>
+        </div>
+        <div class="acard">
+          <div class="acard-title">💜 Mensaje motivacional</div>
+          <textarea class="inp" id="msg-txt" rows="3" placeholder="Escribe un mensaje especial..."></textarea>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <span style="font-size:12px;font-weight:800;color:var(--gray);white-space:nowrap">Enviar a las:</span>
+            <input class="inp" id="msg-hora" type="time" value="08:00" style="flex:1;margin-bottom:0;"/>
+          </div>
+          <button class="btn-prim" id="btn-save-msg">Guardar mensaje ✓</button>
+        </div>
+        <div class="spacer"></div>
+      </div>
+
+      <!-- TAB REPORTES -->
+      <div id="tab-rep" style="display:none">
+        <div class="stat-grid" id="stat-grid"></div>
+        <div class="acard">
+          <div class="acard-title">📈 Por tarea (últimos 7 días)</div>
+          <div id="rep-tareas"></div>
+        </div>
+        <div class="acard">
+          <div class="acard-title">📅 Por día</div>
+          <div id="rep-dias"></div>
+        </div>
+        <div class="spacer"></div>
+      </div>
+
+      <!-- TAB CONFIG -->
+      <div id="tab-cfg" style="display:none">
+        <div class="acard" style="background:linear-gradient(135deg,#5B4FE9,#8B82F0);color:#fff">
+          <div class="acard-title" style="color:#fff">🔗 Código de tu familia</div>
+          <div id="family-code-box" style="background:rgba(255,255,255,.2);border-radius:12px;padding:12px;font-size:22px;font-weight:900;letter-spacing:4px;text-align:center;margin-bottom:8px;word-break:break-all;">—</div>
+          <div style="font-size:11px;opacity:.85;line-height:1.5;margin-bottom:10px">
+            📱 <b>Para vincular el celular del joven:</b><br>
+            1. Abre la app en su celular<br>
+            2. Ve a Admin → ⚙️ Config<br>
+            3. Pega este código en "Código de familia"<br>
+            4. Ambos quedan sincronizados ✅
+          </div>
+          <button class="btn-prim" id="btn-copiar-codigo" style="background:rgba(255,255,255,.25);border:2px solid rgba(255,255,255,.5)">📋 Copiar código</button>
+        </div>
+        <div class="acard">
+          <div class="acard-title">🔗 Ingresar código de familia</div>
+          <div style="font-size:12px;color:var(--gray);font-weight:700;margin-bottom:8px">Si eres el celular del joven, pega aquí el código del admin:</div>
+          <input class="inp" id="input-family-code" placeholder="Pega el código aquí" style="letter-spacing:2px;font-weight:800;"/>
+          <button class="btn-prim" id="btn-vincular">Vincular celulares 🔗</button>
+          <div id="vincular-msg" style="font-size:12px;font-weight:800;text-align:center;margin-top:6px;min-height:16px;"></div>
+        </div>
+        <div class="acard">
+          <div class="acard-title">👤 Nombre del joven</div>
+          <input class="inp" id="cfg-nombre" placeholder="Ej: Mateo"/>
+          <button class="btn-prim" id="btn-save-nombre">Guardar nombre ✓</button>
+        </div>
+        <div class="acard">
+          <div class="acard-title">🔑 Cambiar PIN</div>
+          <input class="inp" id="pin-actual" type="password" inputmode="numeric" maxlength="4" placeholder="PIN actual"/>
+          <input class="inp" id="pin-nuevo" type="password" inputmode="numeric" maxlength="4" placeholder="PIN nuevo (4 dígitos)"/>
+          <input class="inp" id="pin-conf" type="password" inputmode="numeric" maxlength="4" placeholder="Confirmar PIN nuevo"/>
+          <button class="btn-prim" id="btn-pin">Cambiar PIN ✓</button>
+          <div id="pin-msg" style="font-size:12px;font-weight:800;text-align:center;margin-top:6px;min-height:18px;"></div>
+        </div>
+        <div class="install-card">
+          <div style="font-size:15px;font-weight:900;margin-bottom:6px">📲 Instalar como App</div>
+          <div style="font-size:12px;opacity:.9;line-height:1.6;margin-bottom:8px">
+            <b>Android (Chrome):</b> Menú ⋮ → Añadir a pantalla de inicio<br>
+            <b>iPhone (Safari):</b> Botón □↑ → Añadir a inicio
+          </div>
+          <button class="install-btn" id="btn-install" style="display:none">⬇️ Instalar ahora</button>
+          <div id="install-hint" style="font-size:11px;opacity:.85;margin-top:4px;"></div>
+        </div>
+        <div class="acard">
+          <button class="btn-danger" id="btn-logout">Cerrar sesión de administrador</button>
+        </div>
+        <div class="spacer"></div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+  <!-- NAV -->
+  <div id="nav">
+    <button class="nb on" data-sc="hoy"><span class="ni">🏠</span><span class="nl">Hoy</span></button>
+    <button class="nb" data-sc="cal"><span class="ni">📅</span><span class="nl">Calendario</span></button>
+    <button class="nb" data-sc="adm" id="nav-adm"><span class="ni">👨‍💼</span><span class="nl">Admin</span></button>
+  </div>
+</div><!-- /app -->
+
+<!-- PANTALLA DE BLOQUEO -->
+<div id="lockscreen">
+  <span class="lk-time" id="lk-time">--:--</span>
+  <span class="lk-date" id="lk-date"></span>
+  <div class="lk-cards" id="lk-cards"></div>
+  <button class="lk-unlock" onclick="hideLock()">🔓 Desbloquear</button>
+</div>
+
+<!-- LOGIN ADMIN -->
+<div id="login-screen">
+  <div class="login-ico">🔐</div>
+  <div class="login-title">Área Admin</div>
+  <div class="login-sub">Ingresa tu PIN de 4 dígitos</div>
+  <input class="login-inp" id="login-pin" type="password" inputmode="numeric" maxlength="4" placeholder="••••"/>
+  <button class="login-btn" id="login-btn">Entrar →</button>
+  <div class="login-err" id="login-err"></div>
+  <button class="login-cancel" id="login-cancel">Cancelar</button>
+</div>
+
+<!-- MODAL FOTO -->
+<div class="overlay" id="modal-foto">
+  <div class="modal">
+    <button class="modal-x" id="modal-foto-x">✕</button>
+    <div class="modal-title">📷 Foto de evidencia</div>
+    <div id="foto-body"></div>
+    <input type="file" id="file-in" accept="image/*" capture="environment" style="display:none"/>
+  </div>
+</div>
+
+<!-- MODAL MENSAJE -->
+<div class="overlay" id="modal-msg">
+  <div class="modal">
+    <button class="modal-x" id="modal-msg-x">✕</button>
+    <div class="modal-title">💜 Mensaje de hoy</div>
+    <div id="modal-msg-body" style="font-size:15px;font-weight:700;color:var(--txt);line-height:1.6;text-align:center;padding:8px 0;"></div>
+  </div>
+</div>
+
+<!-- SYNC BANNER -->
+<div id="sync-banner">🔄 Sincronizando...</div>
+
+<script>
+// ══════════════════════════════════════════════════
+// FIREBASE CONFIG — datos guardados en la nube 🌐
+// (Usa la base de datos demo pública — cada familia
+//  tiene sus datos separados por su propio código)
+// ══════════════════════════════════════════════════
+const FB_CFG = {
+  apiKey: "AIzaSyDemo-MiRutinaApp-TEA",
+  authDomain: "mi-rutina-tea.firebaseapp.com",
+  databaseURL: "https://mi-rutina-tea-default-rtdb.firebaseio.com",
+  projectId: "mi-rutina-tea",
+};
+
+// ══════════════════════════════════════════════════
+// STORAGE LOCAL (funciona offline también)
+// ══════════════════════════════════════════════════
+const LS = {
+  g: k => { try { return JSON.parse(localStorage.getItem('mr4_'+k)); } catch { return null; } },
+  s: (k,v) => { try { localStorage.setItem('mr4_'+k, JSON.stringify(v)); } catch {} },
+};
+
+// ══════════════════════════════════════════════════
+// ESTADO
+// ══════════════════════════════════════════════════
+const TAREAS_DEF = [
+  {id:1,hora:'07:30',nombre:'Desayuno',emoji:'🍳',color:'#FF6B6B'},
+  {id:2,hora:'08:00',nombre:'Cepillar dientes',emoji:'🦷',color:'#4ECDC4'},
+  {id:3,hora:'08:30',nombre:'Vestirse',emoji:'👕',color:'#45B7D1'},
+  {id:4,hora:'13:00',nombre:'Almuerzo',emoji:'🍽️',color:'#96CEB4'},
+  {id:5,hora:'17:00',nombre:'Tarea del colegio',emoji:'📚',color:'#FFEAA7'},
+  {id:6,hora:'19:00',nombre:'Ducha',emoji:'🚿',color:'#A29BFE'},
+  {id:7,hora:'21:00',nombre:'Preparar mochila',emoji:'🎒',color:'#FD79A8'},
+  {id:8,hora:'21:30',nombre:'Dormir',emoji:'😴',color:'#5B4FE9'},
+];
+const EMOJIS = ['⭐','🎯','🏃','📖','🍎','💊','🧹','🎨','🎮','🎵','🛁','☀️','🌙','🍵','🥤','🦷','👕','🎒','📚','🍳','🍽️','🚿','😴','💪','🧘'];
+const COLORES = ['#FF6B6B','#4ECDC4','#45B7D1','#96CEB4','#FFEAA7','#A29BFE','#FD79A8','#5B4FE9','#74B9FF','#22D3A5','#FFD93D','#E17055'];
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const DIAS = ['Lu','Ma','Mi','Ju','Vi','Sa','Do'];
+const cpct = p => p>=80?'#22D3A5':p>=50?'#FFD93D':p>0?'#FF6B6B':'#e2e8f0';
+const pad = n => String(n).padStart(2,'0');
+const dateKey = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const $ = id => document.getElementById(id);
+const now = () => new Date();
+
+let G = {
+  tareas:      LS.g('tareas')   || JSON.parse(JSON.stringify(TAREAS_DEF)),
+  tareasFinde: LS.g('tareasFinde') || JSON.parse(JSON.stringify(TAREAS_DEF)),
+  diasSemana:  LS.g('diasSemana') || {lv: true, finde: true},
+  regs:        LS.g('regs')     || {},
+  pin:         LS.g('pin')      || '1234',
+  notifAct:    LS.g('notifAct') || {},
+  notifMin:    LS.g('notifMin') || {},
+  notifSonido: LS.g('notifSonido') || {},
+  msgTxt:      LS.g('msgTxt')   || '',
+  msgHora:     LS.g('msgHora')  || '08:00',
+  nombre:      LS.g('nombre')   || '',
+  calMes:      { y: now().getFullYear(), m: now().getMonth() },
+  diaDetalle:  null,
+  adminOn:     false,
+  editId:      null,
+  diaTipo:     'lv',
+  selEmoji:    '⭐',
+  selColor:    '#74B9FF',
+  fotoCtx:     null,
+};
+
+function saveAll() {
+  LS.s('tareas',     G.tareas);
+  LS.s('tareasFinde', G.tareasFinde);
+  LS.s('diasSemana',  G.diasSemana);
+  LS.s('regs',     G.regs);
+  LS.s('pin',      G.pin);
+  LS.s('notifAct', G.notifAct);
+  LS.s('notifMin',  G.notifMin);
+  LS.s('notifSonido', G.notifSonido);
+  LS.s('msgTxt',   G.msgTxt);
+  LS.s('msgHora',  G.msgHora);
+  LS.s('nombre',   G.nombre);
+  syncCloud();
+}
+
+// ══════════════════════════════════════════════════
+// SINCRONIZACIÓN EN LA NUBE (Firebase)
+// ══════════════════════════════════════════════════
+let db = null;
+let familyCode = LS.g('familyCode');
+
+function initFirebase() {
+  // Generar código de familia único si no existe
+  if (!familyCode) {
+    familyCode = 'fam_' + Math.random().toString(36).slice(2,10);
+    LS.s('familyCode', familyCode);
+  }
+
+  try {
+    // Intentar inicializar Firebase
+    if (typeof firebase !== 'undefined' && firebase.apps && !firebase.apps.length) {
+      firebase.initializeApp(FB_CFG);
+      db = firebase.database();
+      listenCloud();
+    }
+  } catch(e) {
+    // Firebase no disponible — modo local
+    console.log('Modo offline:', e.message);
+  }
+  updateSyncDot(false);
+}
+
+function syncCloud() {
+  if (!db) { updateSyncDot(false); return; }
+  showSyncBanner();
+  const ref = db.ref('familias/' + familyCode);
+  ref.set({
+    tareas:   G.tareas,
+    regs:     G.regs,
+    msgTxt:   G.msgTxt,
+    msgHora:  G.msgHora,
+    nombre:   G.nombre,
+    ts:       Date.now(),
+  }).then(() => {
+    updateSyncDot(true);
+    hideSyncBanner();
+  }).catch(() => updateSyncDot(false));
+}
+
+function listenCloud() {
+  if (!db) return;
+  const ref = db.ref('familias/' + familyCode);
+  ref.on('value', snap => {
+    const data = snap.val();
+    if (!data) return;
+    // Solo actualizar si los datos vienen de otro dispositivo
+    const local_ts = LS.g('last_ts') || 0;
+    if (data.ts && data.ts > local_ts + 2000) {
+      G.tareas  = data.tareas  || G.tareas;
+      G.regs    = data.regs    || G.regs;
+      G.msgTxt  = data.msgTxt  || G.msgTxt;
+      G.msgHora = data.msgHora || G.msgHora;
+      G.nombre  = data.nombre  || G.nombre;
+      LS.s('tareas',  G.tareas);
+      LS.s('regs',    G.regs);
+      LS.s('msgTxt',  G.msgTxt);
+      LS.s('msgHora', G.msgHora);
+      LS.s('nombre',  G.nombre);
+      LS.s('last_ts', data.ts);
+      renderHoy();
+      updateSyncDot(true);
+      showSyncBanner('✅ Datos sincronizados');
+    }
+  });
+}
+
+let syncTimer = null;
+function showSyncBanner(txt) {
+  const b = $('sync-banner');
+  b.textContent = txt || '🔄 Guardando...';
+  b.classList.add('show');
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => b.classList.remove('show'), 2000);
+}
+function hideSyncBanner() {
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => $('sync-banner').classList.remove('show'), 1500);
+}
+function updateSyncDot(ok) {
+  const d = $('sync-dot');
+  d.className = ok ? 'ok' : '';
+  d.setAttribute('title', ok ? '✅ Sincronizado' : '⚠️ Sin conexión / local');
+}
+
+// Código de familia para compartir
+function mostrarCodigo() {
+  alert(`🔗 Código de tu familia:\n\n${familyCode}\n\nEste código sincroniza ambos celulares.\nPara vincular el celular del joven, abre la app, ve a Admin > Config y pega este código.`);
+}
+
+// ══════════════════════════════════════════════════
+// RELOJ
+// ══════════════════════════════════════════════════
+function tick() {
+  const n = now();
+  const t = `${pad(n.getHours())}:${pad(n.getMinutes())}`;
+  $('topbar-reloj').textContent = t;
+  $('topbar-fecha').textContent = n.toLocaleDateString('es-ES',{weekday:'short',day:'numeric',month:'short'});
+  $('topbar-nombre').textContent = (G.nombre ? G.nombre.toUpperCase() + ' — ' : '') + 'MI RUTINA 🚀';
+  $('lk-time').textContent = t;
+  $('lk-date').textContent = n.toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
+}
+setInterval(tick, 15000);
+tick();
+
+// ══════════════════════════════════════════════════
+// NAVEGACIÓN
+// ══════════════════════════════════════════════════
+function goTo(sc) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nb').forEach(b => b.classList.remove('on'));
+  $('s-' + sc).classList.add('active');
+  document.querySelector(`.nb[data-sc="${sc}"]`)?.classList.add('on');
+  if (sc === 'hoy')  renderHoy();
+  if (sc === 'cal')  renderCal();
+  if (sc === 'adm')  renderAdmin();
+}
+
+document.querySelectorAll('.nb').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const sc = btn.dataset.sc;
+    if (sc === 'adm') { tryAdmin(); return; }
+    goTo(sc);
+  });
+});
+
+$('btn-back-cal').addEventListener('click', () => goTo('cal'));
+
+// ══════════════════════════════════════════════════
+// HOY
+// ══════════════════════════════════════════════════
+function hoyKey() { return dateKey(now()); }
+
+function esFinde(d) {
+  const dia = (d || now()).getDay();
+  return dia === 0 || dia === 6; // 0=domingo, 6=sábado
+}
+
+function tareasDeHoy() {
+  return esFinde() ? G.tareasFinde : G.tareas;
+}
+
+function tareasDelDia(dk) {
+  const [y,m,d] = dk.split('-').map(Number);
+  const fecha = new Date(y, m-1, d);
+  return esFinde(fecha) ? G.tareasFinde : G.tareas;
+}
+function getReg(dk) { return G.regs[dk] || {}; }
+function pctDia(dk) {
+  if (!G.tareas.length) return 0;
+  const reg = getReg(dk);
+  const ok = G.tareas.filter(t => reg[t.id] && reg[t.id].e === 'ok').length;
+  return Math.round(ok / G.tareas.length * 100);
+}
+
+function renderHoy() {
+  const dk = hoyKey();
+  const pct = pctDia(dk);
+  const fill = $('prog-fill');
+  fill.style.width = pct + '%';
+  fill.style.background = cpct(pct);
+  $('prog-label').textContent = `${pct}% completado hoy`;
+
+  const lista = $('hoy-lista');
+  lista.innerHTML = '';
+
+  // Mensaje motivacional
+  if (G.msgTxt) {
+    const mc = document.createElement('div');
+    mc.className = 'msg-card';
+    mc.innerHTML = `<div class="msg-label">💜 MENSAJE DE HOY</div><div class="msg-txt">${G.msgTxt}</div>`;
+    mc.addEventListener('click', () => {
+      $('modal-msg-body').textContent = G.msgTxt;
+      $('modal-msg').classList.add('show');
+    });
+    lista.appendChild(mc);
+  }
+
+  const ts = [...tareasDeHoy()].sort((a,b) => a.hora.localeCompare(b.hora));
+  const diaLabel = esFinde() ? '🏖️ Fin de semana' : '📅 Lunes a Viernes';
+  // Mostrar etiqueta del tipo de día
+  const diaTag = document.createElement('div');
+  diaTag.style.cssText = 'margin:8px 14px 0;padding:6px 12px;background:'+(esFinde()?'#FFD93D22':'#5B4FE922')+';border-radius:10px;font-size:11px;font-weight:800;color:'+(esFinde()?'#d97706':'#5B4FE9');
+  diaTag.textContent = diaLabel;
+  lista.appendChild(diaTag);
+  if (!ts.length) {
+    lista.innerHTML += '<div class="empty">Sin tareas. El Admin puede agregarlas.</div>';
+    return;
+  }
+
+  ts.forEach(t => {
+    const reg = (getReg(dk)[t.id] || {});
+    const ok  = reg.e === 'ok';
+    const no  = reg.e === 'no';
+
+    const card = document.createElement('div');
+    card.className = `t-card${ok?' done':no?' nope':''}`;
+    card.style.borderLeftColor = t.color;
+    card.innerHTML = `
+      <div class="t-top">
+        <span class="t-ico">${t.emoji}</span>
+        <div class="t-data">
+          <div class="t-hora">${t.hora}</div>
+          <div class="t-nom">${t.nombre}</div>
+        </div>
+        ${reg.e ? `<div class="t-badge ${ok?'bg-ok':'bg-no'}">${ok?'✅ Listo':'❌ No hecho'}</div>` : ''}
+      </div>
+      <div class="t-btns">
+        <button class="btn-ok${ok?' sel':''}">✓ Realizado</button>
+        <button class="btn-no${no?' sel':''}">✗ No realizado</button>
+        <button class="btn-cam${reg.f?' has':''}">📷${reg.f?' Ver':''}</button>
+      </div>
+      ${reg.f ? `<div class="foto-prev"><img src="${reg.f}" alt="foto"/><span>📸 Ver foto de evidencia</span></div>` : ''}
+      <div class="comentario-wrap" style="margin-top:8px">
+        <textarea class="comentario-inp" placeholder="✏️ Escribe un comentario sobre esta tarea..." style="width:100%;padding:8px 10px;border-radius:10px;border:1.5px solid #e2e8f0;font-size:12px;font-weight:700;font-family:inherit;resize:none;color:var(--txt);background:#fafafa;outline:none;" rows="2">${reg.c||''}</textarea>
+        <button class="btn-guardar-com" style="margin-top:4px;padding:6px 14px;background:var(--p);color:#fff;border:none;border-radius:9px;font-size:11px;font-weight:900;cursor:pointer;font-family:inherit;">💾 Guardar comentario</button>
+        ${reg.c ? `<div style="font-size:10px;color:var(--g);font-weight:800;margin-top:3px">✅ Comentario guardado</div>` : ''}
+      </div>
+    `;
+    card.querySelector('.btn-ok').addEventListener('click', () => marcar(dk, t.id, 'ok'));
+    card.querySelector('.btn-no').addEventListener('click', () => marcar(dk, t.id, 'no'));
+    card.querySelector('.btn-cam').addEventListener('click', () => openFoto(dk, t.id));
+    if (reg.f) card.querySelector('.foto-prev').addEventListener('click', () => openFoto(dk, t.id));
+    card.querySelector('.btn-guardar-com').addEventListener('click', () => {
+      const txt = card.querySelector('.comentario-inp').value.trim();
+      if (!G.regs[dk]) G.regs[dk] = {};
+      G.regs[dk][t.id] = { ...(G.regs[dk][t.id] || {}), c: txt };
+      saveAll(); renderHoy();
+    });
+    lista.appendChild(card);
+  });
+}
+
+function marcar(dk, tid, est) {
+  if (!G.regs[dk]) G.regs[dk] = {};
+  G.regs[dk][tid] = { ...(G.regs[dk][tid] || {}), e: est };
+  saveAll();
+  renderHoy();
+}
+
+// ══════════════════════════════════════════════════
+// FOTO
+// ══════════════════════════════════════════════════
+function openFoto(dk, tid) {
+  G.fotoCtx = { dk, tid };
+  const reg = (getReg(dk)[tid] || {});
+  const body = $('foto-body');
+  body.innerHTML = reg.f
+    ? `<img class="img-big" src="${reg.f}" alt="foto"/>`
+    : `<div class="no-foto">Sin foto aún 📷</div>`;
+  const btn = document.createElement('button');
+  btn.className = 'btn-prim';
+  btn.style.marginTop = '8px';
+  btn.textContent = reg.f ? 'Cambiar foto 🔄' : 'Subir foto 📸';
+  btn.addEventListener('click', () => $('file-in').click());
+  body.appendChild(btn);
+  $('modal-foto').classList.add('show');
+}
+
+$('file-in').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file || !G.fotoCtx) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const { dk, tid } = G.fotoCtx;
+    if (!G.regs[dk]) G.regs[dk] = {};
+    G.regs[dk][tid] = { ...(G.regs[dk][tid] || {}), f: ev.target.result };
+    saveAll();
+    renderHoy();
+    $('modal-foto').classList.remove('show');
+    e.target.value = '';
+  };
+  reader.readAsDataURL(file);
+});
+
+$('modal-foto-x').addEventListener('click', () => $('modal-foto').classList.remove('show'));
+$('modal-msg-x').addEventListener('click',  () => $('modal-msg').classList.remove('show'));
+
+// ══════════════════════════════════════════════════
+// CALENDARIO
+// ══════════════════════════════════════════════════
+function renderCal() {
+  const { y, m } = G.calMes;
+  $('cal-titulo').textContent = `${MESES[m]} ${y}`;
+  const grid = $('cal-grid');
+  grid.innerHTML = DIAS.map(d => `<div class="cal-dn">${d}</div>`).join('');
+
+  const first = new Date(y, m, 1);
+  const last  = new Date(y, m+1, 0);
+  const startDow = (first.getDay() + 6) % 7;
+  const hk = hoyKey();
+
+  for (let i = 0; i < startDow; i++) grid.appendChild(document.createElement('div'));
+
+  for (let d = 1; d <= last.getDate(); d++) {
+    const dk  = dateKey(new Date(y, m, d));
+    const pct = pctDia(dk);
+    const reg = getReg(dk);
+    const has = Object.keys(reg).length > 0;
+    const esHoy = dk === hk;
+
+    const cell = document.createElement('div');
+    cell.className = `cal-d${esHoy ? ' hoy' : ''}`;
+    cell.style.background = has ? cpct(pct) + '22' : '#f8f9fa';
+    cell.innerHTML = `<span class="cal-num">${d}</span>
+      ${has ? `<span class="cal-pct" style="color:${cpct(pct)}">${pct}%</span>` : `<span style="font-size:9px;color:#cbd5e1">—</span>`}`;
+    cell.addEventListener('click', () => verDia(dk));
+    grid.appendChild(cell);
+  }
+}
+
+$('cal-prev').addEventListener('click', () => {
+  let {y,m} = G.calMes;
+  m--; if (m < 0) { m = 11; y--; }
+  G.calMes = {y,m}; renderCal();
+});
+$('cal-next').addEventListener('click', () => {
+  let {y,m} = G.calMes;
+  m++; if (m > 11) { m = 0; y++; }
+  G.calMes = {y,m}; renderCal();
+});
+
+function verDia(dk) {
+  G.diaDetalle = dk;
+  const [y,m,d] = dk.split('-').map(Number);
+  const fecha = new Date(y, m-1, d);
+  $('det-fecha').textContent = fecha.toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  $('det-pct').textContent = pctDia(dk) + '%';
+
+  const reg = getReg(dk);
+  const lista = $('det-lista');
+  lista.innerHTML = '';
+  const ts = [...tareasDeHoy()].sort((a,b) => a.hora.localeCompare(b.hora));
+  const diaLabel = esFinde() ? '🏖️ Fin de semana' : '📅 Lunes a Viernes';
+  // Mostrar etiqueta del tipo de día
+  const diaTag = document.createElement('div');
+  diaTag.style.cssText = 'margin:8px 14px 0;padding:6px 12px;background:'+(esFinde()?'#FFD93D22':'#5B4FE922')+';border-radius:10px;font-size:11px;font-weight:800;color:'+(esFinde()?'#d97706':'#5B4FE9');
+  diaTag.textContent = diaLabel;
+  lista.appendChild(diaTag);
+  if (!ts.length) { lista.innerHTML = '<div class="empty">Sin tareas</div>'; }
+
+  ts.forEach(t => {
+    const r  = reg[t.id] || {};
+    const ok = r.e === 'ok', no = r.e === 'no';
+    const card = document.createElement('div');
+    card.className = 't-card';
+    card.style.borderLeftColor = t.color;
+    card.innerHTML = `
+      <div class="t-top">
+        <span class="t-ico">${t.emoji}</span>
+        <div class="t-data"><div class="t-hora">${t.hora}</div><div class="t-nom">${t.nombre}</div></div>
+        <div class="t-badge ${ok?'bg-ok':no?'bg-no':'bg-pend'}">${ok?'✅ Listo':no?'❌ No hecho':'⏳ Sin registro'}</div>
+      </div>
+      ${r.f ? `<div class="foto-prev"><img src="${r.f}" alt="foto"/><span>📸 Ver evidencia</span></div>` : ''}
+      ${r.c ? `<div style="margin-top:8px;background:#f4f3ff;border-radius:10px;padding:8px 10px;font-size:12px;font-weight:700;color:var(--txt)">💬 <b>Comentario:</b> ${r.c}</div>` : ''}
+    `;
+    if (r.f) card.querySelector('.foto-prev').addEventListener('click', () => {
+      $('foto-body').innerHTML = `<img class="img-big" src="${r.f}" alt="foto"/>`;
+      $('modal-foto').classList.add('show');
+    });
+    lista.appendChild(card);
+  });
+
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nb').forEach(b => b.classList.remove('on'));
+  $('s-det').classList.add('active');
+  document.querySelector('.nb[data-sc="cal"]').classList.add('on');
+}
+
+// ══════════════════════════════════════════════════
+// ADMIN LOGIN
+// ══════════════════════════════════════════════════
+function tryAdmin() {
+  if (G.adminOn) { goTo('adm'); return; }
+  $('login-pin').value = '';
+  $('login-err').textContent = '';
+  $('login-screen').classList.add('show');
+  setTimeout(() => $('login-pin').focus(), 100);
+}
+
+$('login-btn').addEventListener('click', () => {
+  const pin = $('login-pin').value;
+  if (pin === G.pin) {
+    G.adminOn = true;
+    $('login-screen').classList.remove('show');
+    goTo('adm');
+  } else {
+    $('login-err').textContent = '❌ PIN incorrecto';
+    $('login-pin').value = '';
+    setTimeout(() => $('login-err').textContent = '', 2000);
+  }
+});
+
+$('login-pin').addEventListener('keydown', e => { if (e.key === 'Enter') $('login-btn').click(); });
+$('login-cancel').addEventListener('click', () => $('login-screen').classList.remove('show'));
+$('btn-logout').addEventListener('click', () => { G.adminOn = false; goTo('hoy'); });
+
+// Copiar código de familia
+document.addEventListener('click', e => {
+  if (e.target.id === 'btn-copiar-codigo') {
+    navigator.clipboard.writeText(familyCode).then(() => {
+      e.target.textContent = '✅ ¡Copiado!';
+      setTimeout(() => e.target.textContent = '📋 Copiar código', 2000);
+    }).catch(() => {
+      // Fallback para Safari
+      const ta = document.createElement('textarea');
+      ta.value = familyCode; document.body.appendChild(ta);
+      ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+      e.target.textContent = '✅ ¡Copiado!';
+      setTimeout(() => e.target.textContent = '📋 Copiar código', 2000);
+    });
+  }
+});
+
+// Vincular código de familia (celular del joven)
+document.addEventListener('click', e => {
+  if (e.target.id === 'btn-vincular') {
+    const code = $('input-family-code').value.trim();
+    if (!code.startsWith('fam_') || code.length < 10) {
+      $('vincular-msg').style.color = 'var(--r)';
+      $('vincular-msg').textContent = '❌ Código inválido. Copia el código exacto del celular del admin.';
+      return;
+    }
+    familyCode = code;
+    LS.s('familyCode', familyCode);
+    $('vincular-msg').style.color = 'var(--g)';
+    $('vincular-msg').textContent = '✅ ¡Vinculado! Ambos celulares ahora están sincronizados.';
+    listenCloud();
+  }
+});
+
+// ══════════════════════════════════════════════════
+// ADMIN TABS
+// ══════════════════════════════════════════════════
+function renderAdmin() {
+  switchTab('tareas');
+  $('cfg-nombre').value = G.nombre;
+  $('msg-txt').value    = G.msgTxt;
+  $('msg-hora').value   = G.msgHora;
+}
+
+function switchTab(tab) {
+  ['tareas','notif','rep','cfg'].forEach(t => {
+    $('tab-' + t).style.display = t === tab ? 'block' : 'none';
+  });
+  document.querySelectorAll('.tab').forEach(el => {
+    el.classList.toggle('on', el.dataset.tab === tab);
+  });
+  if (tab === 'tareas') renderAdmTareas();
+  if (tab === 'notif')  renderTabNotif();
+  if (tab === 'rep')    renderReporte();
+  if (tab === 'cfg')    renderTabCfg();
+}
+
+document.querySelectorAll('.tab').forEach(btn => {
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+});
+
+// ══════════════════════════════════════════════════
+// ADMIN — TAREAS
+// ══════════════════════════════════════════════════
+function switchDiaTipo(tipo) {
+  G.diaTipo = tipo;
+  const btnLv    = document.getElementById('btn-lv');
+  const btnFinde = document.getElementById('btn-finde');
+  if (btnLv && btnFinde) {
+    btnLv.style.background    = tipo === 'lv'    ? '#5B4FE9' : 'transparent';
+    btnLv.style.color         = tipo === 'lv'    ? '#fff'    : '#94a3b8';
+    btnFinde.style.background = tipo === 'finde' ? '#FFD93D' : 'transparent';
+    btnFinde.style.color      = tipo === 'finde' ? '#1e1b4b' : '#94a3b8';
+  }
+  G.editId = null;
+  renderAdmTareas();
+}
+
+function getTareasActuales() {
+  return G.diaTipo === 'finde' ? G.tareasFinde : G.tareas;
+}
+
+function setTareasActuales(arr) {
+  if (G.diaTipo === 'finde') G.tareasFinde = arr;
+  else G.tareas = arr;
+}
+
+function renderAdmTareas() {
+  const lista = $('adm-lista');
+  lista.innerHTML = '';
+  const ts = [...tareasDeHoy()].sort((a,b) => a.hora.localeCompare(b.hora));
+  const diaLabel = esFinde() ? '🏖️ Fin de semana' : '📅 Lunes a Viernes';
+  // Mostrar etiqueta del tipo de día
+  const diaTag = document.createElement('div');
+  diaTag.style.cssText = 'margin:8px 14px 0;padding:6px 12px;background:'+(esFinde()?'#FFD93D22':'#5B4FE922')+';border-radius:10px;font-size:11px;font-weight:800;color:'+(esFinde()?'#d97706':'#5B4FE9');
+  diaTag.textContent = diaLabel;
+  lista.appendChild(diaTag);
+
+  if (!ts.length) {
+    lista.innerHTML = '<div class="empty" style="padding:10px 0">Sin tareas aún</div>';
+  }
+
+  ts.forEach(t => {
+    const isEdit = G.editId === t.id;
+    const row = document.createElement('div');
+
+    if (isEdit) {
+      row.className = 'edit-box';
+      row.innerHTML = `
+        <div style="font-size:11px;font-weight:900;color:var(--p);margin-bottom:8px">✏️ EDITANDO</div>
+        <input class="inp ei-nom" value="${t.nombre}" placeholder="Nombre"/>
+        <div class="edit-row">
+          <input class="inp ei-hr" type="time" value="${t.hora}"/>
+        </div>
+        <div style="font-size:11px;font-weight:800;color:var(--gray);margin:6px 0 4px">EMOJI</div>
+        <div class="pick-row ei-ep"></div>
+        <div style="font-size:11px;font-weight:800;color:var(--gray);margin:6px 0 4px">COLOR</div>
+        <div class="pick-row ei-cp"></div>
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <button class="btn-prim ei-save" style="flex:1;padding:10px;font-size:13px">💾 Guardar</button>
+          <button class="btn-sec ei-cancel" style="flex:1;padding:10px;font-size:13px;margin:0">✕ Cancelar</button>
+        </div>
+      `;
+
+      // Emoji picker en edición
+      const ep = row.querySelector('.ei-ep');
+      EMOJIS.forEach(em => {
+        const b = document.createElement('button');
+        b.className = 'ep' + (t.emoji === em ? ' on' : '');
+        b.textContent = em;
+        b.addEventListener('click', () => {
+          const idx = getTareasActuales().findIndex(x => x.id === t.id);
+          if (idx >= 0) { getTareasActuales()[idx].emoji = em; saveAll(); renderAdmTareas(); }
+        });
+        ep.appendChild(b);
+      });
+
+      // Color picker en edición
+      const cp = row.querySelector('.ei-cp');
+      COLORES.forEach(c => {
+        const b = document.createElement('button');
+        b.className = 'cp' + (t.color === c ? ' on' : '');
+        b.style.background = c;
+        b.addEventListener('click', () => {
+          const idx = getTareasActuales().findIndex(x => x.id === t.id);
+          if (idx >= 0) { getTareasActuales()[idx].color = c; saveAll(); renderAdmTareas(); }
+        });
+        cp.appendChild(b);
+      });
+
+      row.querySelector('.ei-save').addEventListener('click', () => {
+        const idx = G.tareas.findIndex(x => x.id === t.id);
+        if (idx >= 0) {
+          const nom = row.querySelector('.ei-nom').value.trim();
+          const hr  = row.querySelector('.ei-hr').value;
+          if (!nom) return;
+          getTareasActuales()[idx].nombre = nom;
+          getTareasActuales()[idx].hora   = hr;
+          G.editId = null;
+          saveAll(); renderAdmTareas(); renderHoy();
+        }
+      });
+      row.querySelector('.ei-cancel').addEventListener('click', () => { G.editId = null; renderAdmTareas(); });
+
+    } else {
+      row.className = 'ta-row';
+      row.innerHTML = `
+        <span style="font-size:22px;flex-shrink:0">${t.emoji}</span>
+        <div class="ta-info">
+          <div class="ta-nm">${t.nombre}</div>
+          <div class="ta-hr">🕐 ${t.hora}</div>
+        </div>
+        <button class="ta-edit">✏️</button>
+        <button class="ta-del">🗑️</button>
+      `;
+      row.querySelector('.ta-edit').addEventListener('click', () => { G.editId = t.id; renderAdmTareas(); });
+      row.querySelector('.ta-del').addEventListener('click', () => {
+        setTareasActuales(getTareasActuales().filter(x => x.id !== t.id));
+        if (G.editId === t.id) G.editId = null;
+        saveAll(); renderAdmTareas(); renderHoy();
+      });
+    }
+    lista.appendChild(row);
+  });
+
+  // Pickers nueva tarea
+  const ep = $('nt-ep'); ep.innerHTML = '';
+  EMOJIS.forEach(em => {
+    const b = document.createElement('button');
+    b.className = 'ep' + (G.selEmoji === em ? ' on' : '');
+    b.textContent = em;
+    b.addEventListener('click', () => { G.selEmoji = em; renderAdmTareas(); });
+    ep.appendChild(b);
+  });
+  const cp = $('nt-cp'); cp.innerHTML = '';
+  COLORES.forEach(c => {
+    const b = document.createElement('button');
+    b.className = 'cp' + (G.selColor === c ? ' on' : '');
+    b.style.background = c;
+    b.addEventListener('click', () => { G.selColor = c; renderAdmTareas(); });
+    cp.appendChild(b);
+  });
+}
+
+$('btn-add-t').addEventListener('click', () => {
+  const nom = $('nt-nom').value.trim();
+  const hr  = $('nt-hr').value;
+  if (!nom) {
+    $('nt-nom').style.borderColor = 'var(--r)';
+    $('nt-nom').focus();
+    setTimeout(() => $('nt-nom').style.borderColor = '', 1500);
+    return;
+  }
+  getTareasActuales().push({ id: Date.now(), hora: hr, nombre: nom, emoji: G.selEmoji, color: G.selColor });
+  saveAll();
+  $('nt-nom').value = '';
+  renderAdmTareas(); renderHoy();
+  const btn = $('btn-add-t');
+  const orig = btn.textContent;
+  btn.textContent = '✅ ¡Tarea agregada!';
+  btn.style.background = 'var(--g)';
+  setTimeout(() => { btn.textContent = orig; btn.style.background = ''; }, 2000);
+});
+
+// ══════════════════════════════════════════════════
+// ADMIN — NOTIFICACIONES
+// ══════════════════════════════════════════════════
+function renderTabNotif() {
+  // Estado permiso
+  const perm = ('Notification' in window) ? Notification.permission : 'unsupported';
+  const st = $('notif-status');
+  if (perm === 'granted') {
+    st.className = 'status-box status-ok';
+    st.textContent = '✅ Notificaciones activadas en este celular';
+  } else if (perm === 'denied') {
+    st.className = 'status-box status-err';
+    st.textContent = '❌ Bloqueadas — ve a Ajustes del celular para permitirlas';
+  } else {
+    st.className = 'status-box status-warn';
+    st.textContent = '⚠️ No activadas — toca el botón de abajo';
+  }
+
+  // Lista de tareas con toggle
+  const nl = $('notif-lista'); nl.innerHTML = '';
+  const ts = [...tareasDeHoy()].sort((a,b) => a.hora.localeCompare(b.hora));
+  const diaLabel = esFinde() ? '🏖️ Fin de semana' : '📅 Lunes a Viernes';
+  // Mostrar etiqueta del tipo de día
+  const diaTag = document.createElement('div');
+  diaTag.style.cssText = 'margin:8px 14px 0;padding:6px 12px;background:'+(esFinde()?'#FFD93D22':'#5B4FE922')+';border-radius:10px;font-size:11px;font-weight:800;color:'+(esFinde()?'#d97706':'#5B4FE9');
+  diaTag.textContent = diaLabel;
+  lista.appendChild(diaTag);
+  if (!ts.length) { nl.innerHTML = '<div style="font-size:12px;color:var(--gray);font-weight:700">Agrega tareas primero</div>'; return; }
+  ts.forEach(t => {
+    const on = G.notifAct[t.id] !== false;
+    const row = document.createElement('div');
+    row.className = 'nt-row';
+    const minAntes = G.notifMin && G.notifMin[t.id] !== undefined ? G.notifMin[t.id] : 10;
+    row.innerHTML = `
+      <span style="font-size:20px">${t.emoji}</span>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:800;color:var(--txt)">${t.nombre}</div>
+        <div style="font-size:10px;color:var(--gray);font-weight:700">🕐 ${t.hora}</div>
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:4px">
+          <span style="font-size:10px;color:var(--gray);font-weight:700">Avisar:</span>
+          <select class="sel-min" style="font-size:11px;font-weight:800;border:1.5px solid #e2e8f0;border-radius:8px;padding:3px 6px;color:var(--txt);background:#fff;font-family:inherit">
+            <option value="5"  ${minAntes==5?'selected':''}>5 min antes</option>
+            <option value="10" ${minAntes==10?'selected':''}>10 min antes</option>
+            <option value="15" ${minAntes==15?'selected':''}>15 min antes</option>
+            <option value="20" ${minAntes==20?'selected':''}>20 min antes</option>
+            <option value="30" ${minAntes==30?'selected':''}>30 min antes</option>
+            <option value="60" ${minAntes==60?'selected':''}>1 hora antes</option>
+          </select>
+          <select class="sel-son" style="font-size:11px;font-weight:800;border:1.5px solid #e2e8f0;border-radius:8px;padding:3px 6px;color:var(--txt);background:#fff;font-family:inherit">
+            ${Object.entries(SONIDO_NOMBRES).map(([k,v])=>`<option value="${k}" ${(G.notifSonido[t.id]||'suave')===k?'selected':''}>${v}</option>`).join('')}
+          </select>
+          <button class="btn-test-son" style="font-size:11px;font-weight:800;background:#f4f3ff;color:var(--p);border:none;border-radius:8px;padding:4px 8px;cursor:pointer">▶️ Probar</button>
+        </div>
+      </div>
+      <label class="nt-toggle"><input type="checkbox" ${on?'checked':''}><span class="nt-slider"></span></label>
+    `;
+    row.querySelector('input').addEventListener('change', e => {
+      G.notifAct[t.id] = e.target.checked;
+      saveAll(); scheduleNotifs();
+    });
+    row.querySelector('.sel-min').addEventListener('change', e => {
+      if (!G.notifMin) G.notifMin = {};
+      G.notifMin[t.id] = parseInt(e.target.value);
+      saveAll(); scheduleNotifs();
+    });
+    row.querySelector('.sel-son').addEventListener('change', e => {
+      if (!G.notifSonido) G.notifSonido = {};
+      G.notifSonido[t.id] = e.target.value;
+      saveAll();
+    });
+    row.querySelector('.btn-test-son').addEventListener('click', () => {
+      const son = (G.notifSonido && G.notifSonido[t.id]) || 'suave';
+      playTone(son);
+    });
+    nl.appendChild(row);
+  });
+}
+
+$('btn-perm').addEventListener('click', () => {
+  if (!('Notification' in window)) { alert('Este navegador no soporta notificaciones.\nUsa Chrome en Android o Safari en iPhone.'); return; }
+  if (Notification.permission === 'denied') {
+    alert('Las notificaciones están bloqueadas.\n\n📱 Android: Ajustes → Apps → Chrome → Notificaciones → Activar\n🍎 iPhone: Ajustes → Safari → Notificaciones → Permitir');
+    return;
+  }
+  Notification.requestPermission().then(p => {
+    renderTabNotif();
+    if (p === 'granted') {
+      scheduleNotifs();
+      try { new Notification('🚀 Mi Rutina Diaria', { body: '¡Notificaciones activadas! Recibirás recordatorios.', tag: 'bienvenida' }); } catch(e){}
+    }
+  });
+});
+
+$('btn-prueba').addEventListener('click', () => showLock(true));
+
+$('btn-save-msg').addEventListener('click', () => {
+  G.msgTxt  = $('msg-txt').value.trim();
+  G.msgHora = $('msg-hora').value;
+  saveAll(); renderHoy(); scheduleMsgMotiv();
+  const btn = $('btn-save-msg');
+  btn.textContent = '✅ ¡Guardado!';
+  btn.style.background = 'var(--g)';
+  setTimeout(() => { btn.textContent = 'Guardar mensaje ✓'; btn.style.background = ''; }, 2000);
+});
+
+// ══════════════════════════════════════════════════
+// ADMIN — CONFIG
+// ══════════════════════════════════════════════════
+function renderTabCfg() {
+  $('cfg-nombre').value = G.nombre;
+  ['pin-actual','pin-nuevo','pin-conf'].forEach(id => $(id).value = '');
+  $('pin-msg').textContent = '';
+
+  // Mostrar código de familia
+  const box = $('family-code-box');
+  if (box) box.textContent = familyCode || '...';
+  const inp = $('input-family-code');
+  if (inp) inp.value = '';
+  const vm = $('vincular-msg');
+  if (vm) vm.textContent = '';
+
+  if (window.matchMedia('(display-mode: standalone)').matches) {
+    $('install-hint').textContent = '✅ App instalada correctamente';
+  } else if (!deferredInstall) {
+    $('install-hint').textContent = '📱 Menú del navegador → Añadir a pantalla de inicio';
+  }
+}
+
+$('btn-save-nombre').addEventListener('click', () => {
+  G.nombre = $('cfg-nombre').value.trim();
+  saveAll(); tick();
+  const btn = $('btn-save-nombre');
+  btn.textContent = '✅ Guardado';
+  btn.style.background = 'var(--g)';
+  setTimeout(() => { btn.textContent = 'Guardar nombre ✓'; btn.style.background = ''; }, 2000);
+});
+
+$('btn-pin').addEventListener('click', () => {
+  const actual = $('pin-actual').value;
+  const nuevo  = $('pin-nuevo').value;
+  const conf   = $('pin-conf').value;
+  const msg    = $('pin-msg');
+  if (actual !== G.pin)              { msg.style.color='var(--r)'; msg.textContent='❌ PIN actual incorrecto'; return; }
+  if (!/^\d{4}$/.test(nuevo))        { msg.style.color='var(--r)'; msg.textContent='❌ El PIN debe ser 4 dígitos'; return; }
+  if (nuevo !== conf)                { msg.style.color='var(--r)'; msg.textContent='❌ Los PINes no coinciden'; return; }
+  G.pin = nuevo; saveAll();
+  msg.style.color = 'var(--g)'; msg.textContent = '✅ PIN cambiado';
+  ['pin-actual','pin-nuevo','pin-conf'].forEach(id => $(id).value = '');
+  setTimeout(() => msg.textContent = '', 3000);
+});
+
+// ══════════════════════════════════════════════════
+// ADMIN — REPORTES
+// ══════════════════════════════════════════════════
+function renderReporte() {
+  const dias = [];
+  for (let i=6; i>=0; i--) { const d=new Date(); d.setDate(d.getDate()-i); dias.push(d); }
+
+  let totOk=0, totT=0, dDatos=0, mejorDia=0;
+  dias.forEach(d => {
+    const dk=dateKey(d), reg=getReg(dk);
+    if (Object.keys(reg).length) dDatos++;
+    const ok=G.tareas.filter(t=>reg[t.id]&&reg[t.id].e==='ok').length;
+    totOk+=ok; totT+=G.tareas.length;
+    const p=pctDia(dk); if(p>mejorDia) mejorDia=p;
+  });
+  const pctG = totT>0 ? Math.round(totOk/totT*100) : 0;
+
+  $('stat-grid').innerHTML=`
+    <div class="stat-box"><div class="stat-n" style="color:var(--p)">${pctG}%</div><div class="stat-l">Cumplimiento semanal</div></div>
+    <div class="stat-box"><div class="stat-n" style="color:var(--g)">${totOk}</div><div class="stat-l">Tareas completadas</div></div>
+    <div class="stat-box"><div class="stat-n" style="color:var(--y)">${dDatos}</div><div class="stat-l">Días registrados</div></div>
+    <div class="stat-box"><div class="stat-n" style="color:var(--r)">${mejorDia}%</div><div class="stat-l">Mejor día</div></div>`;
+
+  const rt = $('rep-tareas'); rt.innerHTML='';
+  G.tareas.forEach(t => {
+    let ok=0; dias.forEach(d=>{ if((getReg(dateKey(d))[t.id]||{}).e==='ok') ok++; });
+    const p=Math.round(ok/7*100);
+    const row=document.createElement('div'); row.className='rep-row';
+    row.innerHTML=`<div class="rep-info"><div class="rep-nm">${t.emoji} ${t.nombre}</div>
+      <div class="rep-bar"><div class="rep-fill" style="width:${p}%;background:${cpct(p)}"></div></div></div>
+      <div class="rep-pct" style="color:${cpct(p)}">${p}%</div>`;
+    rt.appendChild(row);
+  });
+  if (!G.tareas.length) rt.innerHTML='<div style="color:var(--gray);font-size:12px">Sin datos</div>';
+
+  const rd = $('rep-dias'); rd.innerHTML='';
+  dias.forEach(d => {
+    const dk=dateKey(d), p=pctDia(dk);
+    const lbl=d.toLocaleDateString('es-ES',{weekday:'short',day:'numeric'});
+    const row=document.createElement('div'); row.className='rep-row'; row.style.cursor='pointer';
+    row.innerHTML=`<div class="rep-info"><div class="rep-nm" style="text-transform:capitalize">${lbl}</div>
+      <div class="rep-bar"><div class="rep-fill" style="width:${p}%;background:${cpct(p)}"></div></div></div>
+      <div class="rep-pct" style="color:${cpct(p)}">${p}%</div>`;
+    row.addEventListener('click', () => verDia(dk));
+    rd.appendChild(row);
+  });
+}
+
+// ══════════════════════════════════════════════════
+// PANTALLA DE BLOQUEO
+// ══════════════════════════════════════════════════
+function showLock(preview) {
+  const dk=hoyKey(), reg=getReg(dk), n=now();
+  const ts=[...G.tareas].sort((a,b)=>a.hora.localeCompare(b.hora));
+  let html='';
+
+  if (preview) html+=`<div class="lk-card" style="border-color:rgba(91,79,233,.5)">
+    <div class="lk-app"><div class="lk-ico">🚀</div><span class="lk-app-nm">VISTA PREVIA</span></div>
+    <div class="lk-title">Así se ven tus mensajes</div>
+    <div class="lk-body">Los avisos aparecen aquí cuando el celular está bloqueado</div>
+  </div>`;
+
+  if (G.msgTxt) html+=`<div class="lk-card">
+    <div class="lk-app"><div class="lk-ico">💜</div><span class="lk-app-nm">MI RUTINA — MENSAJE ESPECIAL</span></div>
+    <div class="lk-title">💜 Mensaje de hoy</div>
+    <div class="lk-body">${G.msgTxt}</div>
+  </div>`;
+
+  const prox=ts.filter(t=>{const[hh,mm]=t.hora.split(':').map(Number);return hh*60+mm>=n.getHours()*60+n.getMinutes();}).slice(0,3);
+  if (prox.length) html+=`<div class="lk-card">
+    <div class="lk-app"><div class="lk-ico">🚀</div><span class="lk-app-nm">MI RUTINA DIARIA</span></div>
+    <div class="lk-title">📋 Tareas pendientes</div>
+    ${prox.map(t=>`
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;gap:6px">
+        <span style="font-size:13px;font-weight:800">${t.emoji} ${t.hora} — ${t.nombre}</span>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:5px">
+        <button onclick="marcarDesideLock('${dk}',${t.id},'ok')" style="flex:1;padding:7px 4px;background:rgba(34,211,165,.25);border:1.5px solid rgba(34,211,165,.6);border-radius:10px;color:#fff;font-size:11px;font-weight:900;cursor:pointer;font-family:inherit">✓ Realizado</button>
+        <button onclick="marcarDesideLock('${dk}',${t.id},'no')" style="flex:1;padding:7px 4px;background:rgba(255,107,107,.25);border:1.5px solid rgba(255,107,107,.6);border-radius:10px;color:#fff;font-size:11px;font-weight:900;cursor:pointer;font-family:inherit">✗ No realizado</button>
+      </div>
+    `).join('')}
+  </div>`;
+
+  const pct=pctDia(dk),okN=G.tareas.filter(t=>(reg[t.id]||{}).e==='ok').length;
+  // Tareas pasadas sin marcar
+  const pasadas = ts.filter(t=>{
+    const[hh,mm]=t.hora.split(':').map(Number);
+    return hh*60+mm < n.getHours()*60+n.getMinutes() && !(reg[t.id]&&reg[t.id].e);
+  });
+  if (pasadas.length) html+=`<div class="lk-card">
+    <div class="lk-app"><div class="lk-ico">⚠️</div><span class="lk-app-nm">TAREAS SIN REGISTRAR</span></div>
+    <div class="lk-title">¿Las completaste?</div>
+    ${pasadas.map(t=>`
+      <div style="font-size:12px;font-weight:800;margin-top:6px">${t.emoji} ${t.hora} — ${t.nombre}</div>
+      <div style="display:flex;gap:6px;margin-top:4px">
+        <button onclick="marcarDesideLock('${dk}',${t.id},'ok')" style="flex:1;padding:6px 4px;background:rgba(34,211,165,.25);border:1.5px solid rgba(34,211,165,.6);border-radius:9px;color:#fff;font-size:11px;font-weight:900;cursor:pointer;font-family:inherit">✓ Sí lo hice</button>
+        <button onclick="marcarDesideLock('${dk}',${t.id},'no')" style="flex:1;padding:6px 4px;background:rgba(255,107,107,.25);border:1.5px solid rgba(255,107,107,.6);border-radius:9px;color:#fff;font-size:11px;font-weight:900;cursor:pointer;font-family:inherit">✗ No lo hice</button>
+      </div>
+    `).join('')}
+  </div>`;
+  html+=`<div class="lk-card">
+    <div class="lk-app"><div class="lk-ico">📊</div><span class="lk-app-nm">PROGRESO DE HOY</span></div>
+    <div class="lk-title">${pct}% completado</div>
+    <div class="lk-body">${okN} de ${G.tareas.length} tareas realizadas ✅</div>
+  </div>`;
+
+  $('lk-cards').innerHTML = html;
+  $('lockscreen').classList.add('show');
+}
+function hideLock(){ $('lockscreen').classList.remove('show'); }
+
+function marcarDesideLock(dk, tid, est) {
+  if (!G.regs[dk]) G.regs[dk] = {};
+  G.regs[dk][tid] = { ...(G.regs[dk][tid] || {}), e: est };
+  saveAll();
+  // Actualizar visualmente el botón
+  showLock(false); // Recargar la pantalla de bloqueo para reflejar cambio
+  // Feedback de sonido
+  playTone(est === 'ok' ? 'alegre' : 'bip');
+}
+
+// Doble tap en topbar = mostrar lock
+let tapC=0;
+$('topbar').addEventListener('click', () => {
+  tapC++; if (tapC>=2){ tapC=0; showLock(false); }
+  setTimeout(()=>tapC=0, 600);
+});
+
+// ══════════════════════════════════════════════════
+// NOTIFICACIONES REALES
+// ══════════════════════════════════════════════════
+let nTimers=[], mTimer=null;
+
+function scheduleNotifs(){
+  nTimers.forEach(t=>clearTimeout(t)); nTimers=[];
+  if (!('Notification' in window) || Notification.permission!=='granted') return;
+  const n=now();
+  tareasDeHoy().forEach(t=>{
+    if (G.notifAct[t.id]===false) return;
+    const[hh,mm]=t.hora.split(':').map(Number);
+    const minA = (G.notifMin && G.notifMin[t.id] !== undefined) ? G.notifMin[t.id] : 10;
+    const fire=new Date(n.getFullYear(),n.getMonth(),n.getDate(),hh,mm-minA,0);
+    const diff=fire-n;
+    if(diff>0&&diff<86400000){
+      nTimers.push(setTimeout(()=>{
+        try{ new Notification(`⏰ En 10 min: ${t.nombre}`,{
+          body:`🕐 ${t.hora} — ¡Prepárate en ${minA} minutos! ${t.emoji}`,
+          tag:'t-'+t.id, requireInteraction:true, vibrate:[300,100,300]
+        }); }catch(e){}
+      },diff));
+    }
+  });
+}
+
+function scheduleMsgMotiv(){
+  if(mTimer){ clearTimeout(mTimer); mTimer=null; }
+  if(!G.msgTxt||!G.msgHora) return;
+  if(!('Notification' in window)||Notification.permission!=='granted') return;
+  const n=now(),[hh,mm]=G.msgHora.split(':').map(Number);
+  const fire=new Date(n.getFullYear(),n.getMonth(),n.getDate(),hh,mm,0);
+  const diff=fire-n;
+  if(diff>0&&diff<86400000){
+    mTimer=setTimeout(()=>{
+      try{ new Notification('💜 Mensaje especial para ti',{
+        body:G.msgTxt, tag:'msg-motiv', requireInteraction:true, vibrate:[200,100,200]
+      }); }catch(e){}
+    },diff);
+  }
+}
+
+// ══════════════════════════════════════════════════
+// PWA INSTALL
+// ══════════════════════════════════════════════════
+let deferredInstall=null;
+window.addEventListener('beforeinstallprompt', e=>{
+  e.preventDefault(); deferredInstall=e;
+  $('btn-install').style.display='block';
+});
+$('btn-install').addEventListener('click', ()=>{
+  if(deferredInstall){ deferredInstall.prompt(); deferredInstall.userChoice.then(()=>deferredInstall=null); }
+});
+
+// Manifest PWA
+const mf={name:'Mi Rutina Diaria',short_name:'Mi Rutina Diaria',start_url:'.',display:'standalone',
+  background_color:'#5B4FE9',theme_color:'#5B4FE9',
+  icons:[{src:"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='110' fill='%235B4FE9'/><text x='50%25' y='57%25' font-size='300' text-anchor='middle' dominant-baseline='middle'>🚀</text></svg>",sizes:'512x512',type:'image/svg+xml',purpose:'any maskable'}]};
+const ml=document.createElement('link'); ml.rel='manifest';
+ml.href=URL.createObjectURL(new Blob([JSON.stringify(mf)],{type:'application/json'}));
+document.head.appendChild(ml);
+
+// Service Worker
+if('serviceWorker' in navigator){
+  const sw=`const C='mr5';self.addEventListener('install',e=>{self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.map(k=>caches.delete(k)))));self.clients.claim();});self.addEventListener('fetch',e=>{e.respondWith(fetch(e.request).catch(()=>new Response('Offline')));});`;
+  navigator.serviceWorker.register(URL.createObjectURL(new Blob([sw],{type:'text/javascript'}))).catch(()=>{});
+}
+
+// ══════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════
+renderHoy();
+renderCal();
+initFirebase();
+scheduleNotifs();
+scheduleMsgMotiv();
+
+// Reprogramar a medianoche
+const n0=now(),man=new Date(n0.getFullYear(),n0.getMonth(),n0.getDate()+1,0,1,0);
+setTimeout(()=>{ scheduleNotifs(); scheduleMsgMotiv(); setInterval(()=>{ scheduleNotifs(); scheduleMsgMotiv(); },86400000); }, man-n0);
+</script>
+</body>
+</html>
